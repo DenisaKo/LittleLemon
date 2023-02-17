@@ -1,0 +1,12 @@
+# Ignore Mac system files
+.DS_store
+
+# Ignore files related to API keys
+.env
+
+*.log
+*.pot
+*.pyc
+__pycache__
+db.sqlite3
+media
