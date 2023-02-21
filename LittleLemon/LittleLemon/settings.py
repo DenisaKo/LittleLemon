@@ -141,7 +141,6 @@ REST_FRAMEWORK = {
     )
 }
 
-
 DJOSER = {
     'USEER_ID_FIELD': 'username',
 }
