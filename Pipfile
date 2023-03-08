@@ -8,6 +8,8 @@ django = "*"
 djangorestframework = "*"
 djoser = "*"
 django-environ = "*"
+django-filter = "*"
+bleach = "*"
 
 [dev-packages]
 
