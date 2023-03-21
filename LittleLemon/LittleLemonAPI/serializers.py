@@ -68,15 +68,19 @@ class OrderSerializer(serializers.ModelSerializer):
     delivery_crew = serializers.PrimaryKeyRelatedField(read_only='True')
     status = serializers.BooleanField(read_only=True)
     total = serializers.DecimalField(decimal_places=2, max_digits=6,  read_only=True)
+    order_items = serializers.SerializerMethodField(method_name='get_items')
 
     class Meta:
         model = Order
-        fields = ['id', 'user', 'delivery_crew', 'status', 'total', 'date']
+        fields = ['id', 'user', 'delivery_crew', 'status', 'total', 'date', "order_items"]
 
 
     def create(self, validated_data):
         user = validated_data['user']
         cart_items = get_list_or_404(Cart, user=user)
+        if len(cart_items) == 0:
+            raise ValueError(f'your cart has no item in it, no order placed.')
+
         total = sum(cart_item.price for cart_item in cart_items)
         order = Order.objects.create(user=user, total=total)
 
@@ -92,32 +96,37 @@ class OrderSerializer(serializers.ModelSerializer):
         return order
 
 
-class UpdateDeliverCrewSerializer(serializers.ModelSerializer):
+    def get_items(self, obj):
+        items = obj.order_items.all()
+        serializer = OrderItemSerializer(items, many = True)
+        return serializer.data
+        
+
+class UpdateStatusSerializer(OrderSerializer):
     user = serializers.PrimaryKeyRelatedField(read_only='True')
-    delivery_crew = serializers.PrimaryKeyRelatedField(read_only='True')
-    delivery_crew_id = serializers.IntegerField(write_only='True')
+    status = serializers.BooleanField()
 
     class Meta:
         model = Order
-        fields = ['id', 'user', 'delivery_crew', 'delivery_crew_id', 'status', 'total', 'date']
-
-    def validate_delivery_crew_id(self, value):
-        if not User.objects.filter(pk=value, groups__name__in=['Delivery crew']):
-            raise serializers.ValidationError('this user doest not exist in delivery crew')
-        return value
-
-
-class UpdateStatusSerializer(serializers.ModelSerializer):
-    user = serializers.PrimaryKeyRelatedField(read_only='True')
-    status_change = serializers.BooleanField(source='status', write_only=True, required=True)
-
-    class Meta:
-        model = Order
-        fields = ['id', 'user', 'delivery_crew', 'status', 'status_change', 'total', 'date']
+        fields = ['id', 'user', 'delivery_crew', 'status', 'total', 'date']
 
     def validate_status_change(self, value):
         if value not in [True, False]:
             raise serializers.ValidationError('Value has to be a bool value')
+        return value
+
+
+class UpdateDeliverCrewSerializer(UpdateStatusSerializer):
+    user = serializers.PrimaryKeyRelatedField(read_only='True')
+    delivery_crew = serializers.PrimaryKeyRelatedField(queryset=User.objects.filter(groups__name = 'Delivery crew'))
+
+    class Meta:
+        model = Order
+        fields = ['id', 'user', 'delivery_crew', 'status', 'total', 'date']
+
+    def validate_delivery_crew_id(self, value):
+        if not User.objects.filter(pk=value, groups__name__in=['Delivery crew']):
+            raise serializers.ValidationError('this user doest not exist in delivery crew')
         return value
 
 
